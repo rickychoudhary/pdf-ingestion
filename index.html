@@ -1,0 +1,89 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>PDF Upload and Parsing</title>
+    <style>
+        body { font-family: Arial, sans-serif; padding: 20px; }
+        input[type="file"], input[type="text"] { margin-bottom: 10px; }
+        pre { border: 1px solid #ccc; padding: 10px; }
+        .question { margin: 5px 0; }
+    </style>
+</head>
+<body>
+    <h1>Upload PDF Document</h1>
+    <input type="file" id="pdf-file" accept=".pdf">
+    <button id="upload-btn">Upload</button>
+    <h2>Parsed Content</h2>
+    <pre id="output"></pre>
+
+    <h2>Suggested Questions</h2>
+    <div id="questions"></div>
+
+    <h2>Submit Your Query</h2>
+    <input type="text" id="query-input" placeholder="Enter your query">
+    <button id="query-btn">Submit Query</button>
+    <h2>Query Response</h2>
+    <pre id="query-output"></pre>
+    <h2>Citation</h2>
+    <pre id="citation-output"></pre>
+
+    <script>
+        let pdfContent = ""; // Store the content of the uploaded PDF
+
+        document.getElementById("upload-btn").onclick = async () => {
+            const fileInput = document.getElementById("pdf-file");
+            const file = fileInput.files[0];
+            if (!file) {
+                alert("Please select a PDF file.");
+                return;
+            }
+
+            const formData = new FormData();
+            formData.append("file", file);
+
+            const response = await fetch("/upload/", {
+                method: "POST",
+                body: formData,
+            });
+
+            const result = await response.json();
+            pdfContent = result.content || ""; // Store content for queries
+            document.getElementById("output").textContent = pdfContent;
+
+            document.getElementById("questions").innerHTML = "";
+            if (result.questions && result.questions.length > 0) {
+                result.questions.forEach(question => {
+                    const div = document.createElement("div");
+                    div.className = "question";
+                    div.textContent = question;
+                    document.getElementById("questions").appendChild(div);
+                });
+            }
+        };
+
+        document.getElementById("query-btn").onclick = async () => {
+            const queryInput = document.getElementById("query-input");
+            const query = queryInput.value;
+
+            if (!query) {
+                alert("Please enter a query.");
+                return;
+            }
+
+            const response = await fetch("/query/", {
+                method: "POST",
+                headers: {
+                    "Content-Type": "application/json",
+                },
+                body: JSON.stringify({ query, content: pdfContent }),
+            });
+
+            const result = await response.json();
+            document.getElementById("query-output").textContent = result.response || "No response.";
+            document.getElementById("citation-output").textContent = result.citation || "No citation.";
+        };
+    </script>
+</body>
+</html>
