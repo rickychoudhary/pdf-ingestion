@@ -3,87 +3,174 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>PDF Upload and Parsing</title>
+    <title>Intelligent PDF Querying System</title>
     <style>
-        body { font-family: Arial, sans-serif; padding: 20px; }
-        input[type="file"], input[type="text"] { margin-bottom: 10px; }
-        pre { border: 1px solid #ccc; padding: 10px; }
-        .question { margin: 5px 0; }
+        body {
+            font-family: Arial, sans-serif;
+            margin: 20px;
+            background-color:#dce1e7;
+        }
+        h1 {
+            text-align: center;
+            padding: 40px 20px;
+            background: linear-gradient(135deg,#6b7c93,#b0c4d0);
+            color: white;
+            border-radius: 8px;
+            box-shadow: 0 4px 20px rgba(0,0,0,0.1);
+        }
+        .upload-portion{
+            border:1px solid black;
+            height:150px;
+            border-radius: 8px;
+        }
+        .query-section{
+            border:1px solid black;
+            border-radius: 8px;
+            margin-top: 10px;
+        }
+        .question-section{
+            border:1px solid rgb(0, 0, 0);   
+            border-radius: 8px;
+            margin-top: 10px;
+        }
+        button {
+            margin-top: 10px;
+            padding: 10px;
+            background-color: #4a8fb0;
+            color: white;
+            border: none;
+            cursor: pointer;
+            border-radius: 20px;
+            
+        }
+        button:hover {
+            background-color: #5ca3c2;
+            transform: scale(1.02);
+            filter: drop-shadow(0 0 10px #333);
+            transition:0.3s;
+            
+
+        }
+        input[type="file"], input[type="text"] {
+            padding: 10px;
+            margin: 10px 0;
+        }
+        #suggested-questions, #query-result {
+            margin-top: 20px;
+        }
     </style>
 </head>
 <body>
-    <h1>Upload PDF Document</h1>
-    <input type="file" id="pdf-file" accept=".pdf">
-    <button id="upload-btn">Upload</button>
-    <h2>Parsed Content</h2>
-    <pre id="output"></pre>
+<center>
+    <h1>Intelligent PDF Querying System</h1>
 
-    <h2>Suggested Questions</h2>
-    <div id="questions"></div>
-
-    <h2>Submit Your Query</h2>
-    <input type="text" id="query-input" placeholder="Enter your query">
-    <button id="query-btn">Submit Query</button>
-    <h2>Query Response</h2>
-    <pre id="query-output"></pre>
-    <h2>Citation</h2>
-    <pre id="citation-output"></pre>
-
+    <!-- PDF Upload Form -->
+     <div class="upload-portion">
+        <h2>Upload PDF</h2>
+        <input type="file" id="pdfFile" />
+        <button onclick="uploadPDF()">Upload PDF</button>
+        <div id="upload-status"></div>
+    </div>  
+    <div class="question-section">
+        <!-- Suggest Questions Section -->
+        <h2>Get Suggested Questions</h2>
+        <button onclick="getSuggestedQuestions()">Get Suggested Questions</button>
+        <ul id="suggested-questions"></ul>
+    </div>
+    <div class="query-section">
+        <!-- Query PDF Section -->
+        <h2>Query PDF</h2>
+        <input type="text" id="queryInput" placeholder="Enter your query" />
+        <button onclick="queryPDF()">Query PDF</button>
+        <div id="query-result"></div>
+    </div>
+</center>
     <script>
-        let pdfContent = ""; // Store the content of the uploaded PDF
+        const backendUrl = 'http://localhost:8000';
 
-        document.getElementById("upload-btn").onclick = async () => {
-            const fileInput = document.getElementById("pdf-file");
-            const file = fileInput.files[0];
-            if (!file) {
-                alert("Please select a PDF file.");
-                return;
-            }
-
+        // Upload PDF function
+        async function uploadPDF() {
+            const fileInput = document.getElementById('pdfFile');
+            const uploadStatus = document.getElementById('upload-status');
             const formData = new FormData();
-            formData.append("file", file);
-
-            const response = await fetch("/upload/", {
-                method: "POST",
-                body: formData,
-            });
-
-            const result = await response.json();
-            pdfContent = result.content || ""; // Store content for queries
-            document.getElementById("output").textContent = pdfContent;
-
-            document.getElementById("questions").innerHTML = "";
-            if (result.questions && result.questions.length > 0) {
-                result.questions.forEach(question => {
-                    const div = document.createElement("div");
-                    div.className = "question";
-                    div.textContent = question;
-                    document.getElementById("questions").appendChild(div);
-                });
-            }
-        };
-
-        document.getElementById("query-btn").onclick = async () => {
-            const queryInput = document.getElementById("query-input");
-            const query = queryInput.value;
-
-            if (!query) {
-                alert("Please enter a query.");
+            
+            if (fileInput.files.length === 0) {
+                uploadStatus.innerText = "Please select a PDF file.";
                 return;
             }
 
-            const response = await fetch("/query/", {
-                method: "POST",
-                headers: {
-                    "Content-Type": "application/json",
-                },
-                body: JSON.stringify({ query, content: pdfContent }),
-            });
+            formData.append("file", fileInput.files[0]);
 
-            const result = await response.json();
-            document.getElementById("query-output").textContent = result.response || "No response.";
-            document.getElementById("citation-output").textContent = result.citation || "No citation.";
-        };
+            try {
+                const response = await fetch(`${backendUrl}/upload_pdf/`, {
+                    method: 'POST',
+                    body: formData
+                });
+
+                const result = await response.json();
+                if (response.ok) {
+                    uploadStatus.innerText = "PDF uploaded and processed successfully!";
+                } else {
+                    uploadStatus.innerText = `Error: ${result.error}`;
+                }
+            } catch (error) {
+                console.error("Error uploading PDF", error);
+                uploadStatus.innerText = "An error occurred during PDF upload.";
+            }
+        }
+
+        // Get Suggested Questions
+        async function getSuggestedQuestions() {
+            const questionsList = document.getElementById('suggested-questions');
+            questionsList.innerHTML = '';
+
+            try {
+                const response = await fetch(`${backendUrl}/suggest_questions/`);
+                const result = await response.json();
+
+                result.questions.forEach((question) => {
+                    const li = document.createElement('li');
+                    li.innerText = question;
+                    questionsList.appendChild(li);
+                });
+            } catch (error) {
+                console.error("Error fetching suggested questions", error);
+                questionsList.innerHTML = '<li>Error fetching questions.</li>';
+            }
+        }
+
+        // Query the PDF
+        async function queryPDF() {
+            const queryInput = document.getElementById('queryInput').value;
+            const queryResultDiv = document.getElementById('query-result');
+            queryResultDiv.innerHTML = '';
+
+            if (!queryInput) {
+                queryResultDiv.innerText = "Please enter a query.";
+                return;
+            }
+
+            try {
+                const response = await fetch(`${backendUrl}/query_pdf/`, {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                    },
+                    body: JSON.stringify({ query: queryInput })
+                });
+
+                const result = await response.json();
+                if (response.ok) {
+                    queryResultDiv.innerText = `Answer: ${result.query_result}\nCitation: Page ${result.citation.page}`;
+                } else {
+                    queryResultDiv.innerText =` Error: ${result.error}`;
+                }
+            } catch (error) {
+                console.error("Error querying PDF", error);
+                queryResultDiv.innerText = "An error occurred during querying.";
+            }
+        }
     </script>
+    
 </body>
 </html>
